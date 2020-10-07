@@ -1,5 +1,7 @@
 package com.srfsoftware.zio.streaming
 
+import java.io.InputStream
+
 import com.srfsoftware.http.HttpClientUsingCertificates
 import org.apache.http.client.methods.CloseableHttpResponse
 import zio._
@@ -20,5 +22,21 @@ object StreamApi extends App {
     Managed.make(acquire)(release)
   }
 
-  override def run(args: List[String]): URIO[zio.ZEnv, ExitCode] = ???
+  def download = {
+    ZStream.fromIterable(List(123,456,789)).flatMap { param =>
+      ZStream.unwrapManaged(open("","").map(req => ZStream((req, param))))
+    }.mapM {case (req, param) =>
+      val x = effectBlocking(req.getEntity.getContent).refineToOrDie[Exception]
+      x.flatMap(fm => ZIO.effect(parseTheByteArray(fm), param))
+    }
+  }
+
+  def parseTheByteArray(stream: InputStream) = ""
+
+  override def run(args: List[String]): URIO[zio.ZEnv, ExitCode] = {
+    download.flatMap {
+      case (s:String, i:Int) => ZStream.fromIterable(s).map(_.toString)
+      case _                 => ZStream.empty
+    }.foreach(putStrLn(_)).exitCode
+  }
 }
