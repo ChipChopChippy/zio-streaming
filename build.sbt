@@ -26,6 +26,7 @@ libraryDependencies ++= Seq(
     "dev.zio" %% "zio-streams"  % ZIOVersion,
     "dev.zio" %% "zio-test"     % ZIOVersion % "test",
     "dev.zio" %% "zio-test-sbt" % ZIOVersion % "test",
+    "dev.zio" %% "zio-nio" % "1.0.0-RC9",
     "org.apache.httpcomponents" % "httpclient" % "4.5.12",
     "org.cryptacular" % "cryptacular" % "1.2.4"
 )

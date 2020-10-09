@@ -3,6 +3,7 @@ package com.srfsoftware.zio.streaming
 import java.io.InputStream
 
 import com.srfsoftware.http.HttpClientUsingCertificates
+import com.srfsoftware.io.ReadFile
 import org.apache.http.client.methods.CloseableHttpResponse
 import zio._
 import zio.blocking.effectBlocking
