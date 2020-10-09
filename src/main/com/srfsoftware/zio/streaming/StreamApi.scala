@@ -1,43 +1,44 @@
 package com.srfsoftware.zio.streaming
 
-import java.io.InputStream
-
-import com.srfsoftware.http.HttpClientUsingCertificates
-import com.srfsoftware.io.ReadFile
-import org.apache.http.client.methods.CloseableHttpResponse
+import com.srfsoftware.http.SttpHttpClient
 import zio._
 import zio.blocking.effectBlocking
 import zio.console._
 import zio.stream._
+import sttp.client._
+import sttp.model.Uri
 
 object StreamApi extends App {
 
-  def unsafeResponse(certFile: String, keyFile: String) = {
-    val client = new HttpClientUsingCertificates(certFile, keyFile)
-    client.httpClient.execute(client.httpPost("uri", "header", Array[Byte]()))
+  def unsafeResponse(uri: Uri)(implicit backend: SttpBackend[Identity, Nothing, NothingT]) = {
+    val client = new SttpHttpClient
+    client.httpGet(uri).send()
   }
 
-  def open(certFile: String, keyFile: String) = {
-    val acquire = effectBlocking(unsafeResponse(certFile: String, keyFile: String)).refineToOrDie[Exception]
-    val release = (request: CloseableHttpResponse) => effectBlocking(request.close()).orDie
+  def open(uri: Uri) = {
+    implicit val backend = HttpURLConnectionBackend()
+    val acquire = effectBlocking(unsafeResponse(uri)).refineToOrDie[Exception]
+    val release = (request: Identity[Response[Either[String, String]]]) => effectBlocking(backend.close()).orDie
     Managed.make(acquire)(release)
   }
 
-  def download = {
-    ZStream.fromIterable(List(123,456,789)).flatMap { param =>
-      ZStream.unwrapManaged(open("","").map(req => ZStream((req, param))))
+  def download(uri: Uri) = {
+    ZStream.fromIterable(List("GBP")).flatMap { param =>
+      ZStream.unwrapManaged(open(uri).map(req => ZStream((req, param))))
     }.mapM {case (req, param) =>
-      val x = effectBlocking(req.getEntity.getContent).refineToOrDie[Exception]
-      x.flatMap(fm => ZIO.effect(parseTheByteArray(fm), param))
+      val x = effectBlocking(req.body).refineToOrDie[Exception]
+      ZIO.effect(x)
     }
   }
 
-  def parseTheByteArray(stream: InputStream) = ""
-
   override def run(args: List[String]): URIO[zio.ZEnv, ExitCode] = {
-    download.flatMap {
-      case (s:String, i:Int) => ZStream.fromIterable(s).map(_.toString)
-      case _                 => ZStream.empty
-    }.foreach(putStrLn(_)).exitCode
+    val uri = uri"https://api.exchangeratesapi.io/latest"
+    (for {
+      e <- download(uri)
+      f <- ZStream.fromEffect(e).flatMap {
+        case Right(value) => ZStream(value)
+        case Left(exception) => ZStream(exception)
+      }
+    } yield f).foreach(putStrLn(_)).exitCode
   }
 }
