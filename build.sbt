@@ -28,7 +28,8 @@ libraryDependencies ++= Seq(
     "dev.zio" %% "zio-test-sbt" % ZIOVersion % "test",
     "dev.zio" %% "zio-nio" % "1.0.0-RC9",
     "org.apache.httpcomponents" % "httpclient" % "4.5.12",
-    "org.cryptacular" % "cryptacular" % "1.2.4"
+    "org.cryptacular" % "cryptacular" % "1.2.4",
+    "org.scalatest" %% "scalatest" % "3.2.2" % Test
 )
 
 testFrameworks := Seq(new TestFramework("zio.test.sbt.ZTestFramework"))
