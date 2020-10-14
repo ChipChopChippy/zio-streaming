@@ -1,6 +1,7 @@
 package com.srfsoftware.zio.streaming
 
 import com.srfsoftware.http.SttpHttpClient
+import com.srfsoftware.io.ReadFile
 import zio._
 import zio.blocking.effectBlocking
 import zio.console._
@@ -23,7 +24,7 @@ object StreamApi extends App {
   }
 
   def download(uri: Uri) = {
-    ZStream.fromIterable(List("GBP")).flatMap { param =>
+    ZStream.fromIterable(List("GBP","HKD","AUD","DKK")).flatMap { param =>
       ZStream.unwrapManaged(open(uri).map(req => ZStream((req, param))))
     }.mapM {case (req, param) =>
       val x = effectBlocking(req.body).refineToOrDie[Exception]
@@ -33,12 +34,13 @@ object StreamApi extends App {
 
   override def run(args: List[String]): URIO[zio.ZEnv, ExitCode] = {
     val uri = uri"https://api.exchangeratesapi.io/latest"
+    val readWrite = new ReadFile()
     (for {
       e <- download(uri)
       f <- ZStream.fromEffect(e).flatMap {
         case Right(value) => ZStream(value)
         case Left(exception) => ZStream(exception)
       }
-    } yield f).foreach(putStrLn(_)).exitCode
+    } yield f).foreach(readWrite.synchChannelM).exitCode
   }
 }
